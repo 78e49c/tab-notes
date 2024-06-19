@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Not Sekmesi </title>
+    <title>Not Sekmesi</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -110,8 +110,18 @@
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTextBlocks();
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.body.classList.add('dark-mode');
+            }
+        });
+
+        window.addEventListener('beforeunload', saveAllTextBlocksToLocal);
+
         function toggleDarkMode() {
             document.body.classList.toggle("dark-mode");
+            localStorage.setItem('darkMode', document.body.classList.contains("dark-mode"));
             updateBackgroundColors();
         }
 
@@ -180,7 +190,8 @@
             textBlock.id = `textBlock_${blockId}`;
 
             const backgroundColor = generateRandomPastelColor();
-            textBlock.style.backgroundColor = backgroundColor;
+            const adjustedColor = document.body.classList.contains("dark-mode") ? darkenColor(backgroundColor) : backgroundColor;
+            textBlock.style.backgroundColor = adjustedColor;
             textBlock.dataset.originalColor = backgroundColor;
 
             textBlock.innerHTML = `
@@ -207,6 +218,7 @@
         function removeTextBlock(blockId) {
             const textBlock = document.getElementById(`textBlock_${blockId}`);
             textBlock.parentNode.removeChild(textBlock);
+            localStorage.removeItem(`textBlock_${blockId}`);
         }
 
         function updateTextInfo(blockId) {
@@ -220,12 +232,13 @@
             document.getElementById(`lineCount_${blockId}`).innerText = `${lineCount} satır`;
         }
 
-        function updateModifiedTime(blockId, isSave = false) {
+        function updateModifiedTime(blockId, saved = false) {
             const now = new Date().toLocaleString();
-            if (isSave) {
+            if (saved) {
                 document.getElementById(`savedTime_${blockId}`).innerText = now;
+            } else {
+                document.getElementById(`modifiedTime_${blockId}`).innerText = now;
             }
-            document.getElementById(`modifiedTime_${blockId}`).innerText = now;
         }
 
         function generateRandomPastelColor() {
@@ -246,7 +259,8 @@
         function changeColor(blockId) {
             const textBlock = document.getElementById(`textBlock_${blockId}`);
             const newColor = generateRandomPastelColor();
-            textBlock.style.backgroundColor = document.body.classList.contains("dark-mode") ? darkenColor(newColor) : newColor;
+            const adjustedColor = document.body.classList.contains("dark-mode") ? darkenColor(newColor) : newColor;
+            textBlock.style.backgroundColor = adjustedColor;
             textBlock.dataset.originalColor = newColor;
 
             updateTextBlockInfoColors();
@@ -256,7 +270,8 @@
             const textBlocks = document.querySelectorAll('.textBlock');
             textBlocks.forEach(block => {
                 const originalColor = block.dataset.originalColor;
-                block.style.backgroundColor = document.body.classList.contains("dark-mode") ? darkenColor(originalColor) : originalColor;
+                const adjustedColor = document.body.classList.contains("dark-mode") ? darkenColor(originalColor) : originalColor;
+                block.style.backgroundColor = adjustedColor;
                 updateTextBlockInfoColors();
             });
         }
@@ -267,6 +282,69 @@
                 const originalColor = block.dataset.originalColor;
                 const textBlockInfo = block.querySelector('.textBlockInfo');
                 textBlockInfo.style.color = document.body.classList.contains("dark-mode") ? originalColor : darkenColor(originalColor);
+            });
+        }
+
+        function saveAllTextBlocksToLocal() {
+            const textBlocks = document.querySelectorAll('.textBlock');
+            const textBlocksData = [];
+
+            textBlocks.forEach(block => {
+                const blockId = block.id.split('_')[1];
+                const fileName = document.getElementById(`fileNameInput_${blockId}`).value;
+                const text = document.getElementById(`textArea_${blockId}`).value;
+                const originalColor = block.dataset.originalColor;
+
+                const blockData = {
+                    blockId,
+                    fileName,
+                    text,
+                    originalColor,
+                    created: document.getElementById(`textBlockInfo_${blockId}`).innerHTML.split(' | ')[0].split(': ')[1],
+                    modified: document.getElementById(`modifiedTime_${blockId}`).innerText,
+                    saved: document.getElementById(`savedTime_${blockId}`).innerText
+                };
+
+                textBlocksData.push(blockData);
+            });
+
+            localStorage.setItem('textBlocks', JSON.stringify(textBlocksData));
+        }
+
+        function loadTextBlocks() {
+            const textBlocksData = JSON.parse(localStorage.getItem('textBlocks') || '[]');
+            const container = document.getElementById('textBlocksContainer');
+
+            textBlocksData.forEach(data => {
+                const textBlock = document.createElement('div');
+                textBlock.className = 'textBlock';
+                textBlock.id = `textBlock_${data.blockId}`;
+
+                const backgroundColor = data.originalColor;
+                const adjustedColor = document.body.classList.contains("dark-mode") ? darkenColor(backgroundColor) : backgroundColor;
+                textBlock.style.backgroundColor = adjustedColor;
+                textBlock.dataset.originalColor = backgroundColor;
+
+                textBlock.innerHTML = `
+                    <div class="fileName">
+                        <input type="text" id="fileNameInput_${data.blockId}" value="${data.fileName}">
+                        <button onclick="saveText(${data.blockId})">Kaydet</button>
+                        <button onclick="removeTextBlock(${data.blockId})">Sil</button>
+                        <button onclick="changeColor(${data.blockId})">Renk Değiştir</button>
+                    </div>
+                    <textarea id="textArea_${data.blockId}" placeholder="Yazınızı buraya yazın..." oninput="updateTextInfo(${data.blockId}); updateModifiedTime(${data.blockId});">${data.text}</textarea>
+                    <div class="textBlockInfo" id="textBlockInfo_${data.blockId}">
+                        <span id="charCount_${data.blockId}">0 karakter</span> | 
+                        <span id="wordCount_${data.blockId}">0 kelime</span> | 
+                        <span id="lineCount_${data.blockId}">0 satır</span><br> 
+                        Oluşturulma: ${data.created} | 
+                        Son Değiştirilme: <span id="modifiedTime_${data.blockId}">${data.modified}</span> | 
+                        Son Kayıt: <span id="savedTime_${data.blockId}">${data.saved}</span>
+                    </div>
+                `;
+
+                container.appendChild(textBlock);
+                updateTextInfo(data.blockId);
             });
         }
     </script>
