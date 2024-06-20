@@ -28,3 +28,5 @@
 
 5. **Dark Mode:** Toggle between light and dark modes using the "Karanlık Mod" button for improved visibility and personal preference.
 
+
+![](https://raw.githubusercontent.com/78e49c/tab-notes/main/screenshot.png)
